@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Layout, 
   CheckSquare, 
@@ -20,9 +20,13 @@ import {
   Settings,
   Users,
   LogOut,
-  UserCircle
+  UserCircle,
+  Loader2,
+  ShieldCheck,
+  CreditCard
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { taskApi, collaborationApi } from '../utils/api';
 
 const Sidebar = ({ activeTab, setActiveTab, activeProject, setActiveProject }) => (
   <div className="w-64 bg-zinc-50 border-r border-zinc-200 h-screen flex flex-col p-4 fixed left-0 top-0">
@@ -126,18 +130,18 @@ const TaskCard = ({ task, onClick }) => (
     
     <div className="flex flex-wrap gap-2 mb-4">
       <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-        task.priority === 'High' ? 'bg-red-50 text-red-600' : 
-        task.priority === 'Medium' ? 'bg-orange-50 text-orange-600' : 
+        task.priority?.toLowerCase() === 'high' ? 'bg-red-50 text-red-600' : 
+        task.priority?.toLowerCase() === 'medium' ? 'bg-orange-50 text-orange-600' : 
         'bg-green-50 text-green-600'
       }`}>
-        {task.priority}
+        {task.priority || 'Medium'}
       </span>
     </div>
 
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2 text-[11px] font-medium text-zinc-400">
         <Calendar className="w-3 h-3" />
-        {task.date}
+        {task.dueDate ? new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'No date'}
       </div>
       <div className="flex -space-x-2">
         {['M', 'S'].map((init, i) => (
@@ -150,7 +154,7 @@ const TaskCard = ({ task, onClick }) => (
   </motion.div>
 );
 
-const KanbanColumn = ({ title, tasks, onTaskClick, onAddTask }) => (
+const KanbanColumn = ({ title, tasks, onTaskClick, onAddTask, loading }) => (
   <div className="flex-1 min-w-[280px]">
     <div className="flex items-center justify-between mb-4 px-2">
       <div className="flex items-center gap-2">
@@ -167,15 +171,16 @@ const KanbanColumn = ({ title, tasks, onTaskClick, onAddTask }) => (
       ))}
       <button 
         onClick={() => onAddTask(title)}
-        className="w-full py-2 border-2 border-dashed border-zinc-200 rounded-xl text-zinc-400 hover:border-zinc-300 hover:text-zinc-500 transition-all text-sm font-medium flex items-center justify-center gap-2"
+        disabled={loading}
+        className="w-full py-2 border-2 border-dashed border-zinc-200 rounded-xl text-zinc-400 hover:border-zinc-300 hover:text-zinc-500 transition-all text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50"
       >
-        <Plus className="w-4 h-4" /> Add Task
+        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Add Task
       </button>
     </div>
   </div>
 );
 
-const UserDropdown = () => (
+const UserDropdown = ({ onProfileClick, onSettingsClick }) => (
   <motion.div 
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
@@ -185,10 +190,16 @@ const UserDropdown = () => (
       <p className="text-xs font-bold text-zinc-900">Vignesh Sarathy</p>
       <p className="text-[10px] text-zinc-400">admin@protocol.app</p>
     </div>
-    <button className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-50 rounded-lg transition-all">
+    <button 
+      onClick={onProfileClick}
+      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-50 rounded-lg transition-all"
+    >
       <UserCircle className="w-4 h-4" /> Profile
     </button>
-    <button className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-50 rounded-lg transition-all">
+    <button 
+      onClick={onSettingsClick}
+      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-50 rounded-lg transition-all"
+    >
       <Settings className="w-4 h-4" /> Settings
     </button>
     <div className="h-px bg-zinc-50 my-1" />
@@ -198,129 +209,209 @@ const UserDropdown = () => (
   </motion.div>
 );
 
-const TaskDetails = ({ task, onClose }) => (
-  <motion.div 
-    initial={{ x: '100%' }}
-    animate={{ x: 0 }}
-    exit={{ x: '100%' }}
-    transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-    className="fixed right-0 top-0 w-[450px] bg-white h-screen shadow-2xl border-l border-zinc-200 z-[100] flex flex-col"
-  >
-    <div className="p-6 border-b border-zinc-100 flex items-center justify-between">
-      <button onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-lg transition-colors">
-        <X className="w-5 h-5 text-zinc-400" />
-      </button>
-      <div className="flex items-center gap-2">
-        <button className="p-2 hover:bg-zinc-100 rounded-lg transition-colors text-zinc-400">
-          <Star className="w-5 h-5" />
-        </button>
-        <button className="p-2 hover:bg-zinc-100 rounded-lg transition-colors text-zinc-400">
-          <MoreHorizontal className="w-5 h-5" />
-        </button>
-      </div>
-    </div>
+const SettingsModal = ({ onClose }) => (
+  <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      onClick={onClose}
+      className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+    />
+    <motion.div 
+      initial={{ scale: 0.95, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl relative z-10 overflow-hidden"
+    >
+      <div className="flex h-[500px]">
+        <div className="w-48 bg-zinc-50 border-r border-zinc-100 p-6">
+          <h2 className="font-bold text-lg mb-6">Settings</h2>
+          <nav className="space-y-2">
+            {[
+              { icon: User, label: 'Account' },
+              { icon: Bell, label: 'Notifications' },
+              { icon: ShieldCheck, label: 'Security' },
+              { icon: CreditCard, label: 'Billing' },
+            ].map((item, i) => (
+              <button key={i} className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold ${i === 0 ? 'bg-white shadow-sm text-blue-600' : 'text-zinc-500 hover:bg-zinc-100'}`}>
+                <item.icon className="w-4 h-4" />
+                {item.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+        <div className="flex-1 p-10">
+          <div className="flex justify-between items-start mb-8">
+            <div>
+              <h3 className="text-xl font-bold mb-1">Account Settings</h3>
+              <p className="text-xs text-zinc-400 font-medium">Update your profile and personal details.</p>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-full transition-all">
+              <X className="w-5 h-5 text-zinc-400" />
+            </button>
+          </div>
 
-    <div className="flex-1 overflow-y-auto p-8">
-      <h2 className="text-2xl font-bold mb-6 text-zinc-900 leading-tight">{task.title}</h2>
-      
-      <div className="grid grid-cols-2 gap-8 mb-8">
-        <div>
-          <p className="text-[10px] font-bold uppercase text-zinc-400 mb-2 tracking-widest">Priority</p>
-          <div className="flex items-center gap-2">
-             <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${
-              task.priority === 'High' ? 'bg-red-50 text-red-600' : 
-              task.priority === 'Medium' ? 'bg-orange-50 text-orange-600' : 
-              'bg-green-50 text-green-600'
-            }`}>
-              {task.priority}
-            </span>
+          <div className="space-y-6">
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-2">Display Name</label>
+              <input defaultValue="Vignesh Sarathy" className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-2">Email</label>
+              <input defaultValue="admin@protocol.app" className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
+            </div>
+            <div className="pt-4 border-t border-zinc-100 flex justify-end gap-3">
+              <button onClick={onClose} className="px-6 py-2.5 rounded-xl text-xs font-bold text-zinc-500 hover:bg-zinc-50 transition-all">Cancel</button>
+              <button onClick={onClose} className="px-6 py-2.5 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all">Save Changes</button>
+            </div>
           </div>
         </div>
-        <div>
-          <p className="text-[10px] font-bold uppercase text-zinc-400 mb-2 tracking-widest">Due Date</p>
-          <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700">
-            <Calendar className="w-4 h-4 text-zinc-400" />
-            {task.date}
-          </div>
-        </div>
       </div>
-
-      <div className="mb-8">
-        <p className="text-[10px] font-bold uppercase text-zinc-400 mb-2 tracking-widest">Status</p>
-        <select className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer">
-          <option>Backlog</option>
-          <option>To Do</option>
-          <option selected>In Progress</option>
-          <option>Done</option>
-        </select>
-      </div>
-
-      <div className="mb-8">
-        <p className="text-[10px] font-bold uppercase text-zinc-400 mb-2 tracking-widest">Description</p>
-        <div className="bg-zinc-50 rounded-xl p-4 text-sm text-zinc-600 min-h-[120px] border border-zinc-100 leading-relaxed">
-          {task.description || "Initialize the workspace by connecting the identity protocol to the task orchestration engine."}
-        </div>
-      </div>
-
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <p className="text-[10px] font-bold uppercase text-zinc-400 tracking-widest">Subtasks</p>
-          <span className="text-xs font-bold text-zinc-400">2/4</span>
-        </div>
-        <div className="space-y-3">
-          {[
-            { label: 'Complete UI Mockups', checked: true },
-            { label: 'Finalize MERN Backend Auth', checked: true },
-            { label: 'Check q3 Release Notes', checked: false },
-            { label: 'Checklist Subtasks', checked: false },
-          ].map((subtask, i) => (
-            <div key={i} className="flex items-center gap-3 group cursor-pointer">
-              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${subtask.checked ? 'bg-blue-600 border-blue-600' : 'border-zinc-300 group-hover:border-blue-400'}`}>
-                {subtask.checked && <CheckSquare className="w-3 h-3 text-white" />}
-              </div>
-              <span className={`text-sm ${subtask.checked ? 'text-zinc-400 line-through' : 'text-zinc-700 font-medium'}`}>{subtask.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <p className="text-[10px] font-bold uppercase text-zinc-400 mb-4 tracking-widest">Collaboration</p>
-        <div className="space-y-6">
-          {[
-            { user: 'Mike L.', time: '5m ago', text: 'Need a quick review of the controller logic.', avatar: 'M', color: 'bg-emerald-100 text-emerald-600' },
-            { user: 'Jason K.', time: '2m ago', text: 'On it! Will check after the standup.', avatar: 'J', color: 'bg-amber-100 text-amber-600' },
-          ].map((comment, i) => (
-            <div key={i} className="flex gap-3">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm ${comment.color}`}>
-                {comment.avatar}
-              </div>
-              <div className="flex-1 bg-zinc-50 rounded-2xl p-4 border border-zinc-100">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs font-bold text-zinc-800">{comment.user}</span>
-                  <span className="text-[10px] text-zinc-400 font-medium">{comment.time}</span>
-                </div>
-                <p className="text-xs text-zinc-600 leading-relaxed">{comment.text}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-
-    <div className="p-6 border-t border-zinc-100">
-      <div className="relative">
-        <input 
-          placeholder="Write a message..." 
-          className="w-full bg-zinc-50 border-zinc-200 border rounded-xl pl-4 pr-12 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
-        />
-        <button className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-blue-600 text-white shadow-lg shadow-blue-200 rounded-lg hover:bg-blue-700 transition-all">
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
-    </div>
-  </motion.div>
+    </motion.div>
+  </div>
 );
+
+const TaskDetails = ({ task, onClose }) => {
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState('');
+  const [loadingComments, setLoadingComments] = useState(false);
+
+  useEffect(() => {
+    if (task?._id) {
+      setLoadingComments(true);
+      collaborationApi.getComments(task._id)
+        .then(res => setComments(res.data.data.comments || []))
+        .catch(() => setComments([]))
+        .finally(() => setLoadingComments(false));
+    }
+  }, [task?._id]);
+
+  if (!task) return null;
+
+  const handleAddComment = async () => {
+    if (!newComment.trim()) return;
+    try {
+      const res = await collaborationApi.addComment(task._id, {
+        content: newComment,
+        userName: 'Vignesh S.'
+      });
+      setComments([res.data.data.comment, ...comments]);
+      setNewComment('');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  return (
+    <motion.div 
+      initial={{ x: '100%' }}
+      animate={{ x: 0 }}
+      exit={{ x: '100%' }}
+      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+      className="fixed right-0 top-0 w-[450px] bg-white h-screen shadow-2xl border-l border-zinc-200 z-[100] flex flex-col"
+    >
+      <div className="p-6 border-b border-zinc-100 flex items-center justify-between">
+        <button onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-lg transition-colors">
+          <X className="w-5 h-5 text-zinc-400" />
+        </button>
+        <div className="flex items-center gap-2">
+          <button className="p-2 hover:bg-zinc-100 rounded-lg transition-colors text-zinc-400">
+            <Star className="w-5 h-5" />
+          </button>
+          <button className="p-2 hover:bg-zinc-100 rounded-lg transition-colors text-zinc-400">
+            <MoreHorizontal className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-8">
+        <h2 className="text-2xl font-bold mb-6 text-zinc-900 leading-tight">{task.title}</h2>
+        
+        <div className="grid grid-cols-2 gap-8 mb-8">
+          <div>
+            <p className="text-[10px] font-bold uppercase text-zinc-400 mb-2 tracking-widest">Priority</p>
+            <div className="flex items-center gap-2">
+              <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${
+                task.priority?.toLowerCase() === 'high' ? 'bg-red-50 text-red-600' : 
+                task.priority?.toLowerCase() === 'medium' ? 'bg-orange-50 text-orange-600' : 
+                'bg-green-50 text-green-600'
+              }`}>
+                {task.priority || 'Medium'}
+              </span>
+            </div>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase text-zinc-400 mb-2 tracking-widest">Due Date</p>
+            <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700">
+              <Calendar className="w-4 h-4 text-zinc-400" />
+              {task.dueDate ? new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'No date'}
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-8">
+          <p className="text-[10px] font-bold uppercase text-zinc-400 mb-2 tracking-widest">Status</p>
+          <select 
+            value={task.status} 
+            className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+          >
+            <option value="backlog">Backlog</option>
+            <option value="todo">To Do</option>
+            <option value="in-progress">In Progress</option>
+            <option value="done">Done</option>
+          </select>
+        </div>
+
+        <div className="mb-8">
+          <p className="text-[10px] font-bold uppercase text-zinc-400 mb-2 tracking-widest">Description</p>
+          <div className="bg-zinc-50 rounded-xl p-4 text-sm text-zinc-600 min-h-[120px] border border-zinc-100 leading-relaxed">
+            {task.description || "Initialize the workspace by connecting the identity protocol to the task orchestration engine."}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-[10px] font-bold uppercase text-zinc-400 mb-4 tracking-widest">Collaboration</p>
+          <div className="space-y-6">
+            {loadingComments && <Loader2 className="w-5 h-5 animate-spin text-blue-600 mx-auto" />}
+            {comments.map((comment, i) => (
+              <div key={i} className="flex gap-3">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm bg-blue-100 text-blue-600`}>
+                  {comment.userName?.[0] || 'U'}
+                </div>
+                <div className="flex-1 bg-zinc-50 rounded-2xl p-4 border border-zinc-100">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs font-bold text-zinc-800">{comment.userName}</span>
+                    <span className="text-[10px] text-zinc-400 font-medium">
+                      {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <p className="text-xs text-zinc-600 leading-relaxed">{comment.content}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6 border-t border-zinc-100">
+        <div className="relative">
+          <input 
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
+            placeholder="Write a message..." 
+            className="w-full bg-zinc-50 border-zinc-200 border rounded-xl pl-4 pr-12 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+          />
+          <button 
+            onClick={handleAddComment}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-blue-600 text-white shadow-lg shadow-blue-200 rounded-lg hover:bg-blue-700 transition-all"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
 
 const NotificationDropdown = () => (
   <motion.div 
@@ -359,61 +450,82 @@ const Dashboard = () => {
   const [activeProject, setActiveProject] = useState('Product Launch Q3');
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeView, setActiveView] = useState('kanban');
+  const [loading, setLoading] = useState(true);
+  const [creatingTask, setCreatingTask] = useState(false);
+  const [tasks, setTasks] = useState([]);
 
-  const [tasks, setTasks] = useState({
-    'Backlog': [
-      { title: 'Complete UI Mockups for design', priority: 'Low', date: 'Oct 15', tab: 'Inbox' },
-    ],
-    'To Do': [
-      { title: 'Complete MERN Backend Auth', priority: 'Medium', date: 'Oct 18', tab: 'Today' },
-      { title: 'Prepare MERN Backend Auth', priority: 'Medium', date: 'Oct 18', tab: 'Upcoming' },
-    ],
-    'In Progress': [
-      { title: 'Complete UI Mockups', priority: 'High', date: 'Oct 18', tab: 'Inbox' },
-      { title: 'Finalize MERN Backend Auth', priority: 'Medium', date: 'Oct 18', tab: 'Today' },
-      { title: 'Write Q3 Release Notes', priority: 'Low', date: 'Oct 15', tab: 'Inbox' },
-    ],
-    'Done': [
-      { title: 'Finalize MERN Backend Auth', priority: 'Low', date: 'Oct 15', tab: 'Completed' },
-    ]
-  });
+  useEffect(() => {
+    loadTasks();
+  }, []);
 
-  const handleAddTask = (column) => {
+  const loadTasks = async () => {
+    try {
+      setLoading(true);
+      const res = await taskApi.getAll();
+      setTasks(res.data.data.tasks || []);
+    } catch (err) {
+      console.error('Failed to load tasks', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddTask = async (columnTitle) => {
     const title = prompt('Enter task title:');
     if (!title) return;
     
-    setTasks(prev => ({
-      ...prev,
-      [column]: [...prev[column], { 
-        title, 
-        priority: 'Medium', 
-        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), 
-        tab: activeTab 
-      }]
-    }));
+    const statusMap = {
+      'Backlog': 'backlog',
+      'To Do': 'todo',
+      'In Progress': 'in-progress',
+      'Done': 'done'
+    };
+
+    try {
+      setCreatingTask(true);
+      const res = await taskApi.create({
+        title,
+        status: statusMap[columnTitle] || 'todo',
+        priority: 'medium', // Use lowercase to match enum
+        dueDate: new Date(Date.now() + 86400000 * 3).toISOString()
+      });
+      setTasks(prev => [...prev, res.data.data.task]);
+    } catch (err) {
+      console.error('Failed to create task', err);
+      alert('Failed to create task. Please try again.');
+    } finally {
+      setCreatingTask(false);
+    }
   };
 
-  const filteredTasks = useMemo(() => {
-    const result = {};
-    Object.entries(tasks).forEach(([col, colTasks]) => {
-      let filtered = colTasks;
-      
-      // Filter by Tab
-      if (activeTab !== 'Inbox') {
-        filtered = filtered.filter(t => t.tab === activeTab);
+  const groupedTasks = useMemo(() => {
+    const groups = {
+      'Backlog': [],
+      'To Do': [],
+      'In Progress': [],
+      'Done': []
+    };
+    
+    const reverseStatusMap = {
+      'backlog': 'Backlog',
+      'todo': 'To Do',
+      'in-progress': 'In Progress',
+      'done': 'Done'
+    };
+
+    tasks.forEach(task => {
+      const col = reverseStatusMap[task.status] || 'To Do';
+      const matchesSearch = !searchQuery || task.title.toLowerCase().includes(searchQuery.toLowerCase());
+      if (matchesSearch) {
+        groups[col].push(task);
       }
-      
-      // Filter by Search
-      if (searchQuery) {
-        filtered = filtered.filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase()));
-      }
-      
-      result[col] = filtered;
     });
-    return result;
-  }, [tasks, activeTab, searchQuery]);
+    
+    return groups;
+  }, [tasks, searchQuery]);
 
   return (
     <div className="min-h-screen bg-white text-zinc-900 font-['Inter'] selection:bg-blue-100">
@@ -431,11 +543,12 @@ const Dashboard = () => {
             <div className="flex items-center gap-4">
               <button 
                 onClick={() => handleAddTask('To Do')}
-                className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95"
+                disabled={creatingTask}
+                className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95 disabled:opacity-50"
               >
-                <Plus className="w-4 h-4" /> New Task
+                {creatingTask ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} New Task
               </button>
-              <div className="flex bg-zinc-100 p-1 rounded-xl shadow-inner">
+              <div className="flex bg-zinc-100 p-1 rounded-xl shadow-inner border border-zinc-200/50">
                 <button 
                   onClick={() => setActiveView('kanban')}
                   className={`p-1.5 rounded-lg transition-all ${activeView === 'kanban' ? 'bg-white shadow-sm text-blue-600' : 'text-zinc-400'}`}
@@ -466,14 +579,6 @@ const Dashboard = () => {
                   placeholder="Search tasks..." 
                   className="w-full bg-zinc-50 border border-zinc-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-zinc-400"
                 />
-                {searchQuery && (
-                  <button 
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-300 hover:text-zinc-500"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
               </div>
             </div>
 
@@ -502,60 +607,64 @@ const Dashboard = () => {
                 >
                   <User className={`w-5 h-5 ${userMenuOpen ? 'text-blue-600' : 'text-zinc-500'}`} />
                 </div>
-                <AnimatePresence>{userMenuOpen && <UserDropdown />}</AnimatePresence>
+                <AnimatePresence>
+                  {userMenuOpen && (
+                    <UserDropdown 
+                      onProfileClick={() => { setSettingsModalOpen(true); setUserMenuOpen(false); }} 
+                      onSettingsClick={() => { setSettingsModalOpen(true); setUserMenuOpen(false); }} 
+                    />
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           </div>
 
-          {/* Project Title Section */}
           <div className="flex items-center justify-between mb-10">
             <div>
               <div className="flex items-center gap-4 mb-2">
                 <h1 className="text-4xl font-black tracking-tight text-zinc-900">{activeProject}</h1>
                 <div className="flex -space-x-3">
-                  {[
-                    { c: 'bg-indigo-100 text-indigo-600', l: 'S' },
-                    { c: 'bg-emerald-100 text-emerald-600', l: 'M' },
-                    { c: 'bg-amber-100 text-amber-600', l: 'J' },
-                    { c: 'bg-rose-100 text-rose-600', l: 'C' },
-                  ].map((m, i) => (
-                    <motion.div 
-                      key={i} 
-                      whileHover={{ y: -4, zIndex: 10 }}
-                      className={`w-10 h-10 rounded-full border-4 border-white flex items-center justify-center text-xs font-black shadow-sm cursor-pointer transition-all ${m.c}`}
-                    >
-                      {m.l}
-                    </motion.div>
+                  {['S', 'M', 'J', 'C'].map((m, i) => (
+                    <div key={i} className="w-10 h-10 rounded-full border-4 border-white bg-zinc-100 flex items-center justify-center text-xs font-black shadow-sm cursor-pointer hover:y--1 transition-all">
+                      {m}
+                    </div>
                   ))}
-                  <div className="w-10 h-10 rounded-full border-4 border-white bg-zinc-50 flex items-center justify-center text-[10px] font-black text-zinc-400 hover:bg-zinc-100 transition-all cursor-pointer">
+                  <div className="w-10 h-10 rounded-full border-4 border-white bg-zinc-50 flex items-center justify-center text-[10px] font-black text-zinc-400">
                     +2
                   </div>
                 </div>
               </div>
               <p className="text-sm text-zinc-400 font-semibold tracking-wide uppercase">
-                6 Active Contributors • <span className="text-blue-600">{activeTab} View</span>
+                {tasks.length} Total Tasks • <span className="text-blue-600">{activeTab} View</span>
               </p>
             </div>
             <div className="flex items-center gap-3">
                <div className="flex items-center gap-2 px-4 py-2 bg-blue-50/50 text-blue-600 rounded-2xl text-xs font-black border border-blue-100">
-                <div className="w-2 h-2 rounded-full bg-blue-600 animate-ping" />
-                Live Workspace
+                <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                Live Cloud Sync
               </div>
             </div>
           </div>
 
-          {/* Kanban Board */}
-          <div className="flex gap-6 overflow-x-auto pb-8 scrollbar-hide">
-            {Object.entries(filteredTasks).map(([title, tasks], i) => (
-              <KanbanColumn 
-                key={i} 
-                title={title} 
-                tasks={tasks} 
-                onTaskClick={(task) => setSelectedTask(task)} 
-                onAddTask={handleAddTask}
-              />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex flex-col items-center justify-center h-64 text-zinc-400">
+              <Loader2 className="w-10 h-10 animate-spin mb-4" />
+              <p className="font-medium">Initializing workspace...</p>
+            </div>
+          ) : (
+            <div className="flex gap-6 overflow-x-auto pb-8 scrollbar-hide">
+              {Object.entries(groupedTasks).map(([title, columnTasks], i) => (
+                <KanbanColumn 
+                  key={i} 
+                  title={title} 
+                  tasks={columnTasks} 
+                  onTaskClick={(task) => setSelectedTask(task)} 
+                  onAddTask={handleAddTask}
+                  loading={creatingTask}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </main>
 
@@ -571,6 +680,12 @@ const Dashboard = () => {
             />
             <TaskDetails task={selectedTask} onClose={() => setSelectedTask(null)} />
           </>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {settingsModalOpen && (
+          <SettingsModal onClose={() => setSettingsModalOpen(false)} />
         )}
       </AnimatePresence>
     </div>
