@@ -19,5 +19,7 @@ router.use(protect);
 router.post('/', taskController.create);
 router.get('/', taskController.getAll);
 router.get('/analytics', taskController.getStats);
+router.patch('/:id', taskController.update);
+router.delete('/:id', taskController.deleteTask);
 
 module.exports = router;

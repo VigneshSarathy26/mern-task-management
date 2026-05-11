@@ -43,8 +43,36 @@ const getStats = async (req, res, next) => {
   }
 };
 
+const update = async (req, res, next) => {
+  try {
+    const task = await taskService.updateTask(req.params.id, req.user.id, req.body);
+    
+    res.status(200).json({
+      status: 'success',
+      data: { task }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteTask = async (req, res, next) => {
+  try {
+    await taskService.deleteTask(req.params.id, req.user.id);
+    
+    res.status(204).json({
+      status: 'success',
+      data: null
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   create,
   getAll,
   getStats,
+  update,
+  deleteTask,
 };

@@ -33,8 +33,26 @@ const getTaskAnalytics = async (redisClient) => {
   return stats;
 };
 
+const updateTask = async (id, userId, taskData) => {
+  const task = await Task.findOneAndUpdate(
+    { _id: id, creator: userId },
+    taskData,
+    { new: true, runValidators: true }
+  );
+  if (!task) throw new NotFoundError('Task not found or unauthorized');
+  return task;
+};
+
+const deleteTask = async (id, userId) => {
+  const task = await Task.findOneAndDelete({ _id: id, creator: userId });
+  if (!task) throw new NotFoundError('Task not found or unauthorized');
+  return task;
+};
+
 module.exports = {
   createTask,
   getTasks,
   getTaskAnalytics,
+  updateTask,
+  deleteTask,
 };
