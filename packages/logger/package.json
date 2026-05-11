@@ -1,0 +1,9 @@
+{
+  "name": "@platform/logger",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "pino": "^9.0.0",
+    "pino-pretty": "^11.0.0"
+  }
+}

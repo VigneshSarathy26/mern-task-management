@@ -1,0 +1,24 @@
+{
+  "name": "mern-task-management-platform",
+  "private": true,
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "docker-compose -f deploy/compose/docker-compose.dev.yml up",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "lint": "npm run lint --workspaces"
+  },
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "husky": "^8.0.0",
+    "lucide-react": "^0.454.0",
+    "prettier": "^3.0.0"
+  }
+}

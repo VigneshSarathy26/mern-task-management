@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  api-gateway:
+    build:
+      context: ../../
+      dockerfile: services/api-gateway/Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=development
+      - PORT=4000
+      - JWT_SECRET=supersecret
+      - AUTH_SERVICE_URL=http://auth-service:4001
+      - TASK_SERVICE_URL=http://task-service:4002
+      - COLLABORATION_SERVICE_URL=http://collaboration-service:4003
+    depends_on:
+      - auth-service
+      - task-service
+      - collaboration-service
+
+  auth-service:
+    build:
+      context: ../../
+      dockerfile: services/auth-service/Dockerfile
+    environment:
+      - NODE_ENV=development
+      - PORT=4001
+      - MONGODB_URI=mongodb://mongodb:27017/auth_db
+      - JWT_SECRET=supersecret
+      - JWT_EXPIRES_IN=1d
+    depends_on:
+      - mongodb
+
+  task-service:
+    build:
+      context: ../../
+      dockerfile: services/task-service/Dockerfile
+    environment:
+      - NODE_ENV=development
+      - PORT=4002
+      - MONGODB_URI=mongodb://mongodb:27017/task_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - mongodb
+      - redis
+
+  collaboration-service:
+    build:
+      context: ../../
+      dockerfile: services/collaboration-service/Dockerfile
+    environment:
+      - NODE_ENV=development
+      - PORT=4003
+      - MONGODB_URI=mongodb://mongodb:27017/collaboration_db
+    depends_on:
+      - mongodb
+
+  web:
+    build:
+      context: ../../
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
+
+volumes:
+  mongodb_data:

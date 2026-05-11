@@ -1,0 +1,60 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --color-primary-50: #f0f9ff;
+  --color-primary-100: #e0f2fe;
+  --color-primary-200: #bae6fd;
+  --color-primary-300: #7dd3fc;
+  --color-primary-400: #38bdf8;
+  --color-primary-500: #0ea5e9;
+  --color-primary-600: #0284c7;
+  --color-primary-700: #0369a1;
+  --color-primary-800: #075985;
+  --color-primary-900: #0c4a6e;
+  
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #000000;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --ring: #000000;
+  --radius: 0.5rem;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer base {
+  * {
+    @apply border-[var(--border)];
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-black text-white hover:bg-zinc-800 px-4 py-2 rounded-md transition-all duration-200 font-medium disabled:opacity-50;
+  }
+  
+  .btn-secondary {
+    @apply bg-white border border-zinc-200 text-black hover:bg-zinc-50 px-4 py-2 rounded-md transition-all duration-200 font-medium;
+  }
+
+  .card {
+    @apply bg-white border border-zinc-100 rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow duration-300;
+  }
+
+  .input-field {
+    @apply w-full px-3 py-2 bg-white border border-zinc-200 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all;
+  }
+}
