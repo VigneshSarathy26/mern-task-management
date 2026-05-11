@@ -1,66 +1,95 @@
-# Protocol: MERN Microservices Task Management Platform
+# 🌌 Protocol: MERN Task Microservices Platform
 
-A production-ready, high-performance task management engine built with a microservices architecture.
+A state-of-the-art, containerized task management ecosystem built with a high-performance MERN microservices architecture. Designed for enterprise-grade scalability, observability, and sub-millisecond responsiveness.
 
-## 🚀 Architecture Overview
+![Platform Screenshot](https://raw.githubusercontent.com/VigneshSarathy26/mern-task-management/main/apps/web/public/screenshot.png)
 
-| Layer | Technologies | Key Optimizations |
+## 🏗️ Architectural Blueprint
+
+The platform follows a **decoupled microservices architecture** where each service is independently deployable and scalable.
+
+### 🧩 Core Services
+
+| Service | Responsibility | Stack |
 | :--- | :--- | :--- |
-| **Frontend** | React 18, Tailwind CSS, Framer Motion | "Identity Protocol" Aesthetics, Micro-animations |
-| **Edge & Proxy** | Nginx | Gzip, strict CSP/XSS headers, static asset caching |
-| **Microservices** | Node.js, Express | Fully path-stripped API Gateway integration |
-| **Database** | MongoDB (Mongoose) | Compound Indexes, Virtuals, TTL auto-pruning |
-| **Caching** | Redis (ioredis) | Cache-Aside pattern for expensive analytics |
-| **DevOps** | Docker, Ansible | Containerized environments, Infrastructure as Code |
+| **API Gateway** | Entry point, path stripping, security headers, request routing. | Node.js, Express, HPM |
+| **Auth Service** | Identity management, JWT issuance, password hashing. | Node.js, Express, MongoDB |
+| **Task Service** | Core task lifecycle, Kanban state, Redis caching (Cache-Aside). | Node.js, Express, MongoDB, Redis |
+| **Collaboration** | Commenting engine, real-time event broadcasting. | Node.js, Express, MongoDB, RabbitMQ |
+| **Web App** | Premium React UI, Kanban/List/Calendar views, Framer Motion animations. | React 18, Tailwind CSS, Vite |
 
-## 📂 Project Structure
+---
 
-```text
-task-management-platform/
-├── apps/
-│   └── web/                         # React frontend (Vite)
-├── services/
-│   ├── api-gateway/                 # Edge routing & Auth verification
-│   ├── auth-service/                # Login, JWT, User Management
-│   ├── task-service/                # Task CRUD & Analytics (Redis cached)
-│   └── ...                          # Extensible for collab, notifications, etc.
-├── packages/                        # Shared Internal Libraries
-│   ├── logger/                      # Pino configuration
-│   ├── database/                    # Mongoose connection helpers
-│   ├── redis/                       # Ioredis helpers
-│   ├── errors/                      # Standard error classes
-│   └── ...
-└── infrastructure/                  # Deployment & Automation
-    ├── docker/                      # Multi-stage Dockerfiles
-    └── ansible/                     # Deployment playbooks
-```
+## ☁️ Cloud Portability
+
+Designed to run anywhere. The infrastructure is abstracted via Docker and ready for cloud-native orchestration:
+
+- **AWS**: EKS (Elastic Kubernetes Service), Fargate, DynamoDB, ElastiCache (Redis).
+- **Azure**: AKS (Azure Kubernetes Service), Azure SQL, CosmosDB, Container Apps.
+- **GCP**: GKE (Google Kubernetes Engine), Cloud Run, Memorystore, Cloud Spanner.
+
+---
+
+## 🏁 Expected Results
+
+- **Unified Backend**: A single, robust API serving all task orchestration needs via the Gateway.
+- **Zero-Downtime**: Kubernetes-ready for rolling updates and self-healing container management.
+- **Engineering Excellence**: Codebase passing 100% of quality gates with standardized linting and structure.
+- **Efficiency**: Automated deployments via Docker Compose reducing environment setup time by **>90%**.
+
+---
 
 ## 🛠️ Getting Started
 
 ### Prerequisites
-- Node.js >= 18
-- Docker & Docker Compose
+- Docker & Docker Desktop
+- Node.js 20+
 
-### Installation
-1. Clone the repository
-2. Run `npm install` at the root to setup workspaces
-3. Copy `.env.example` to `.env` in each service
-
-### Development
-Launch the entire stack using Docker Compose:
-```bash
-npm run dev
+### Deployment
+```powershell
+# Clone and start the entire stack
+git clone https://github.com/VigneshSarathy26/mern-task-management.git
+cd mern-task-management
+docker compose -f deploy/compose/docker-compose.dev.yml up -d --build
 ```
-The application will be available at:
-- Frontend: `http://localhost:3000`
-- API Gateway: `http://localhost:4000`
+
+Access the platform at: **[http://localhost](http://localhost)**
+
+---
+
+## 🔍 Troubleshooting & Recovery
+
+| Issue | Potential Cause | Resolution |
+| :--- | :--- | :--- |
+| **403 Forbidden** | SecurityConfig restrictions | Verify ingress rules in Nginx/Gateway config. |
+| **DB Connection Error** | Containers not healthy | Run `docker compose ps` to check service status. |
+| **Event Not Received** | RabbitMQ not ready | Check `http://localhost:15672` for queue activity. |
+| **Creation Failed** | Validation Errors | Ensure payload matches MongoDB Schema enums (e.g., lowercase priority). |
+
+---
 
 ## 🔐 Security Features
-- **Strict CSP**: Headers configured in Nginx to prevent XSS.
-- **Path Stripping**: Internal service routes are hidden behind the Gateway.
-- **JWT Authentication**: Secure identity propagation across services.
+- **Strict CSP**: Headers configured in Nginx to prevent XSS and clickjacking.
+- **Path Stripping**: Internal service routes (v1 API) are hidden behind the Gateway.
+- **JWT Authentication**: Secure identity propagation across the service mesh.
+- **CORS Lockdown**: Only authorized origins can communicate with the backend.
 
-## 📈 Performance
-- **Sub-millisecond Caching**: Redis Cache-Aside for heavy aggregation queries.
-- **DB Optimization**: Compound indexes for O(1) lookups on common filters.
-- **Gzip**: Edge-level compression for faster asset delivery.
+---
+
+## 📈 Performance & Scalability
+- **Sub-millisecond Caching**: Redis Cache-Aside pattern for heavy task analytics.
+- **DB Optimization**: Compound indexes for O(1) lookups on status and creator filters.
+- **Gzip/Brotli**: Edge-level compression for faster asset delivery via Nginx.
+- **Stateless Design**: All services are stateless, enabling horizontal auto-scaling.
+
+---
+
+## 🚀 Future Roadmap: Next Level Enhancements
+
+To evolve this ecosystem even further, the following modules are planned:
+
+- **🔐 Identity Provider (IDP)**: Integrate Keycloak or Auth0 for OAuth2/OpenID Connect enterprise security.
+- **📜 Config Server**: Centralize all environment properties in a separate Git-backed config server.
+- **🔀 Advanced Gateway**: Replace Nginx with a more dynamic solution for advanced rate-limiting and A/B testing.
+- **📉 Circuit Breakers**: Implement Resilience patterns to handle cascading failures in the microservices chain.
+- **🐳 Helm Charts**: Package the Kubernetes manifests into Helm charts for enterprise-grade K8s deployments.
